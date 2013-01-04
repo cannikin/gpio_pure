@@ -14,30 +14,40 @@ class GPIO
   # Writes a value to a pin
   def self.write(pin, value)
     set(pin, :out)
-    output = `echo "#{value}" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/value`
-    if output == ''
+    stdin, stdout, stderr = Open3.popen3(%Q{echo "#{value}" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/value})
+    error = stderr.readlines
+
+    if error.empty?
       return value
     else
-      raise Error, output
+      raise Error, error.join
     end
   end
 
 
   # Reads a value from a pin
   def self.read(pin)
-    set(pin, :in)
-    output = `cat /sys/class/gpio/gpio#{PIN_MAP[pin]}/value`
-    return output.chomp.to_i
+    # set(pin, :in)
+    stdin, stdout, stderr = Open3.popen3(%Q{cat /sys/class/gpio/gpio#{PIN_MAP[pin]}/value})
+    error = stderr.readlines
+
+    if error.empty?
+      return stdout.read.chomp.to_i
+    else
+      raise Error, error.join
+    end
   end
 
 
   # Removes the pin from service
   def self.clear(pin)
-    output = `echo "#{PIN_MAP[pin]}" > /sys/class/gpio/unexport`
-    if output == ''
+    stdin, stdout, stderr = Open3.popen3(%Q{echo "#{PIN_MAP[pin]}" > /sys/class/gpio/unexport})
+    error = stderr.readlines
+
+    if error.empty?
       return true
     else
-      raise Error, output
+      raise Error, error.join
     end
   end
 
