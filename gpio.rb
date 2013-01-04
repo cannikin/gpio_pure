@@ -14,40 +14,36 @@ class GPIO
   # Writes a value to a pin
   def self.write(pin, value)
     set(pin, :out)
-    stdin, stdout, stderr = Open3.popen3(%Q{echo "#{value}" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/value})
-    error = stderr.readlines
-
-    if error.empty?
+    execute "echo \"#{value}\" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/value" do |out|
       return value
-    else
-      raise Error, error.join
     end
   end
 
 
   # Reads a value from a pin
   def self.read(pin)
-    # set(pin, :in)
-    stdin, stdout, stderr = Open3.popen3(%Q{cat /sys/class/gpio/gpio#{PIN_MAP[pin]}/value})
-    error = stderr.readlines
-
-    if error.empty?
-      return stdout.read.chomp.to_i
-    else
-      raise Error, error.join
+    set(pin, :in)
+    execute "cat /sys/class/gpio/gpio#{PIN_MAP[pin]}/value" do |out|
+      return out.to_i
     end
   end
 
 
-  # Removes the pin from service
+  # Removes the pin from service. Could be useful if you have other code using
+  # sysfs and need to make a pin available to it.
   def self.clear(pin)
-    stdin, stdout, stderr = Open3.popen3(%Q{echo "#{PIN_MAP[pin]}" > /sys/class/gpio/unexport})
-    error = stderr.readlines
-
-    if error.empty?
+    execute "echo \"#{PIN_MAP[pin]}\" > /sys/class/gpio/unexport" do |out|
       return true
-    else
-      raise Error, error.join
+    end
+  end
+
+
+  # Sends commands to enable a pin and set communication direction
+  def self.set(pin, direction)
+    execute "echo \"#{PIN_MAP[pin]}\" > /sys/class/gpio/export" do |out|
+      execute "echo \"#{direction}\" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/direction" do |out|
+        return true
+      end
     end
   end
 
@@ -55,23 +51,17 @@ class GPIO
 private
 
 
-  # Sends commands to enable a pin and set communication direction
-  def self.set(pin, direction)
-    stdin, stdout, stderr = Open3.popen3(%Q{echo "#{PIN_MAP[pin]}" > /sys/class/gpio/export})
+  # Runs a command and wraps it in a open3 call, checking for errors
+  def self.execute(command)
+    stdin, stdout, stderr = Open3.popen3(command)
     error = stderr.readlines
 
     if error.empty?
-      stdin, stdout, stderr = Open3.popen3(%Q{echo "#{direction}" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/direction})
-      error = stderr.readlines
-
-      if error.empty?
-        return true
-      else
-        raise Error, error.join
-      end
+      yield(stdout.read.chomp)
     else
       raise Error, error.join
     end
   end
+
 
 end
