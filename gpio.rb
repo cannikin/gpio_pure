@@ -27,7 +27,8 @@ class GPIO
 
 
   # Removes the pin from service. Could be useful if you have other code using
-  # sysfs and need to make a pin available to it.
+  # sysfs and need to make a pin available to it. Note that clearing a pin
+  # doesn't set it back to LOW, it remains whatever it was when last written to.
   def self.clear(*pins)
     pins = PIN_MAP.keys if pins.first == :all
 
@@ -38,7 +39,9 @@ class GPIO
   end
 
 
-  # Sends commands to enable a pin and set communication direction
+  # Sends commands to enable a pin and set communication direction. Note that
+  # changing the direction of a pin from :out to :in will set the pin LOW no
+  # matter what was there to begin with.
   def self.set(pin, direction)
     execute "echo \"#{PIN_MAP[pin]}\" > /sys/class/gpio/export"
     execute "echo \"#{direction}\" > /sys/class/gpio/gpio#{PIN_MAP[pin]}/direction"
